@@ -41,6 +41,7 @@ public class WebSocketNetworkModule extends TCPNetworkModule {
 	private Properties customWebsocketHeaders;
 	private PipedInputStream pipedInputStream;
 	private WebSocketReceiver webSocketReceiver;
+	private boolean handshakeExecuted = false;
 	ByteBuffer recievedPayload;
 	
 	/**
@@ -65,6 +66,7 @@ public class WebSocketNetworkModule extends TCPNetworkModule {
 		super.start();
 		WebSocketHandshake handshake = new WebSocketHandshake(getSocketInputStream(), getSocketOutputStream(), uri, host, port, customWebsocketHeaders);
 		handshake.execute();
+		handshakeExecuted = true;
 		this.webSocketReceiver = new WebSocketReceiver(getSocketInputStream(), pipedInputStream);
 		webSocketReceiver.start("webSocketReceiver");
 	}
@@ -89,11 +91,14 @@ public class WebSocketNetworkModule extends TCPNetworkModule {
 	 * Stops the module, by closing the TCP socket.
 	 */
 	public void stop() throws IOException {
-		// Creating Close Frame
-		WebSocketFrame frame = new WebSocketFrame((byte)0x08, true, "1000".getBytes());
-		byte[] rawFrame = frame.encodeFrame();
-		getSocketOutputStream().write(rawFrame);
-		getSocketOutputStream().flush();
+		if (handshakeExecuted) {
+			// Creating Close Frame
+			WebSocketFrame frame = new WebSocketFrame((byte) 0x08, true, "1000".getBytes());
+			byte[] rawFrame = frame.encodeFrame();
+			getSocketOutputStream().write(rawFrame);
+			getSocketOutputStream().flush();
+			handshakeExecuted = false;
+		}
 
 		if(webSocketReceiver != null){
 			webSocketReceiver.stop();

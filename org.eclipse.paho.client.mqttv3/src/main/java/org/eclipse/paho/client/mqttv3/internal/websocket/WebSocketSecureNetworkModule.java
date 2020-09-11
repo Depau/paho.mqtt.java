@@ -40,6 +40,7 @@ public class WebSocketSecureNetworkModule extends SSLNetworkModule{
 	private String host;
 	private int port;
 	private Properties customWebSocketHeaders;
+	private boolean handshakeExecuted = false;
 	ByteBuffer recievedPayload;
 	
 	/**
@@ -63,6 +64,7 @@ public class WebSocketSecureNetworkModule extends SSLNetworkModule{
 		super.start();
 		WebSocketHandshake handshake = new WebSocketHandshake(super.getInputStream(), super.getOutputStream(), uri, host, port, customWebSocketHeaders);
 		handshake.execute();
+		handshakeExecuted = true;
 		this.webSocketReceiver = new WebSocketReceiver(getSocketInputStream(), pipedInputStream);
 		webSocketReceiver.start("WssSocketReceiver");
 
@@ -85,11 +87,14 @@ public class WebSocketSecureNetworkModule extends SSLNetworkModule{
 	}
 
 	public void stop() throws IOException {
-		// Creating Close Frame
-		WebSocketFrame frame = new WebSocketFrame((byte)0x08, true, "1000".getBytes());
-		byte[] rawFrame = frame.encodeFrame();
-		getSocketOutputStream().write(rawFrame);
-		getSocketOutputStream().flush();
+		if (handshakeExecuted) {
+			// Creating Close Frame
+			WebSocketFrame frame = new WebSocketFrame((byte) 0x08, true, "1000".getBytes());
+			byte[] rawFrame = frame.encodeFrame();
+			getSocketOutputStream().write(rawFrame);
+			getSocketOutputStream().flush();
+			handshakeExecuted = false;
+		}
 
 		if(webSocketReceiver != null){
 			webSocketReceiver.stop();
